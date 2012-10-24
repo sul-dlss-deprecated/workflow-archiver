@@ -117,7 +117,7 @@ module Dor
 
           @conn.commit
           @archived += 1
-        rescue Exception => e
+        rescue => e
           LyberCore::Log.error "Rolling back transaction due to: #{e.message}\n" << e.backtrace.join("\n") << "\n!!!!!!!!!!!!!!!!!!"
           @conn.rollback
           
