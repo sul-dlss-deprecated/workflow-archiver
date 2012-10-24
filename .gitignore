@@ -1,0 +1,14 @@
+.bundle
+.yardoc
+doc/
+docs/
+*~
+coverage/
+coverage.data
+.idea
+*.tar.gz
+pid
+config/environments/
+config/certs
+.rvmrc
+
