@@ -1,10 +1,11 @@
+require 'rest_client'
 
 module Dor
 
   class WorkflowArchiver
     # These attributes mostly used for testing
     attr_reader :conn, :errors
-    
+
     # Sets up logging and connects to the database.  By default it reads values from constants:
     #  WORKFLOW_DB_LOGIN, WORKFLOW_DB_PASSWORD, WORKFLOW_DB_URI, DOR_SERVICE_URI but can be overriden with the opts Hash
     # @param [Hash] opts Options to override database parameters
@@ -18,7 +19,7 @@ module Dor
     def initialize(opts={})
       LyberCore::Log.set_logfile("#{ROBOT_ROOT}/log/workflow_archiver.log")
       LyberCore::Log.set_level(1)
-      
+
       @login = (opts.include?(:login) ? opts[:login] : WORKFLOW_DB_LOGIN)
       @password = (opts.include?(:password) ? opts[:password] : WORKFLOW_DB_PASSWORD)
       @db_uri = (opts.include?(:db_uri) ? opts[:db_uri] : WORKFLOW_DB_URI)
@@ -27,7 +28,7 @@ module Dor
       @workflow_archive_table = (opts.include?(:wfa_table) ? opts[:wfa_table] : "workflow_archive")
       @retry_delay = (opts.include?(:retry_delay) ? opts[:retry_delay] : 5)
     end
-    
+
     def connect_to_db
       @conn = OCI8.new(@login, @password, @db_uri)
       @conn.autocommit = false
@@ -41,7 +42,7 @@ module Dor
         #LyberCore::Log.debug("Setting: #{param} #{v}")
         cursor.bind_param(param, v) if(v)
       end
-      
+
       num_rows = cursor.exec
       unless num_rows > 0
         raise "Expected more than 0 rows to be updated"
@@ -49,7 +50,7 @@ module Dor
     ensure
       cursor.close
     end
-    
+
     # Copies rows from the workflow table to the workflow_archive table, then deletes the rows from workflow
     # Both operations must complete, or they get rolled back
     # @param [Array<Hash>] List of objects returned from {#find_completed_objects}.  It expects the following keys in the hash
@@ -62,9 +63,16 @@ module Dor
           tries += 1
           LyberCore::Log.info "Archiving #{obj.inspect}"
 
-          version = get_latest_version(obj["DRUID"])
+          begin
+            version = get_latest_version(obj["DRUID"])
+          rescue RestClient::InternalServerError => ise
+            raise unless(ise.inspect =~ /Unable to find.*in fedora/)
+            LyberCore::Log.warn "#{ise.inspect}"
+            LyberCore::Log.warn "Moving workflow rows with version set to '1'"
+            version = '1'
+          end
           copy_sql =<<-EOSQL
-            insert into #{@workflow_archive_table} ( 
+            insert into #{@workflow_archive_table} (
               ID,
               DRUID,
               DATASTREAM,
@@ -78,7 +86,7 @@ module Dor
               ELAPSED,
               REPOSITORY,
               NOTE,
-              VERSION 
+              VERSION
             )
             select
               w.ID,
@@ -99,9 +107,9 @@ module Dor
             where w.druid =    :DRUID
             and w.datastream = :DATASTREAM
           EOSQL
-          
+
           delete_sql = "delete #{@workflow_table} where druid = :DRUID and datastream = :DATASTREAM "
-          
+
           if(obj["REPOSITORY"])
             copy_sql << "and w.repository = :REPOSITORY"
             delete_sql << "and repository = :REPOSITORY"
@@ -109,18 +117,18 @@ module Dor
             copy_sql << "and w.repository IS NULL"
             delete_sql << "and repository IS NULL"
           end
-          
+
           bind_and_exec_sql(copy_sql, obj)
-          
-          LyberCore::Log.debug "  Removing old workflow rows"          
+
+          LyberCore::Log.debug "  Removing old workflow rows"
           bind_and_exec_sql(delete_sql, obj)
 
           @conn.commit
           @archived += 1
         rescue => e
-          LyberCore::Log.error "Rolling back transaction due to: #{e.message}\n" << e.backtrace.join("\n") << "\n!!!!!!!!!!!!!!!!!!"
+          LyberCore::Log.error "Rolling back transaction due to: #{e.inspect}\n" << e.backtrace.join("\n") << "\n!!!!!!!!!!!!!!!!!!"
           @conn.rollback
-          
+
           # Retry this druid up to 3 times
           if tries < 3
             LyberCore::Log.error "  Retrying archive operation in #{@retry_delay.to_s} seconds..."
@@ -128,7 +136,7 @@ module Dor
             retry
           end
           LyberCore::Log.error "  Too many retries.  Giving up on #{obj.inspect}"
-          
+
           @errors += 1
           if @errors >= 3
             LyberCore::Log.fatal("Too many errors. Archiving halted")
@@ -138,11 +146,11 @@ module Dor
 
       end # druids.each
     end
-    
+
     def get_latest_version(druid)
       RestClient.get @dor_service_uri + "/dor/objects/#{druid}/versions/current"
     end
-    
+
     # Finds objects where all workflow steps are complete
     # Returns an array of hashes, each hash having the following keys:
     # {"REPOSITORY"=>"dor", "DRUID"=>"druid:345", "DATASTREAM"=>"googleScannedBookWF"}
@@ -161,7 +169,7 @@ module Dor
           and w2.status != 'completed'
        )
       EOSQL
-      
+
       rows = []
       cursor = @conn.exec(completed_query)
       while r = cursor.fetch_hash
@@ -169,13 +177,13 @@ module Dor
       end
       rows
     end
-    
+
     def simple_sql_exec(sql)
       @conn.exec(sql)
     rescue Exception => e
-      LyberCore::Log.warn "Ignoring error: #{e.message}\n  while trying to execute: " << sql                           
+      LyberCore::Log.warn "Ignoring error: #{e.message}\n  while trying to execute: " << sql
     end
-    
+
     def with_indexing_disabled(&block)
       simple_sql_exec("drop index ds_wf_ar_bitmap_idx")
       simple_sql_exec("drop index repo_wf_ar_bitmap_idx")
@@ -188,14 +196,14 @@ module Dor
     # Does the work of finding completed objects and archiving the rows
     def archive
       objs = find_completed_objects
-      
+
       if objs.size == 0
         LyberCore::Log.info "Nothing to archive"
         exit true
       end
 
       LyberCore::Log.info "Found #{objs.size.to_s} completed workflows"
-      
+
       @errors = 0
       @archived = 0
       with_indexing_disabled { archive_rows(objs) }
