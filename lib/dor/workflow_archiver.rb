@@ -3,6 +3,8 @@ require 'rest_client'
 module Dor
 
   class WorkflowArchiver
+    WF_COLUMNS = %w(ID DRUID DATASTREAM PROCESS STATUS ERROR_MSG ERROR_TXT DATETIME ATTEMPTS LIFECYCLE ELAPSED REPOSITORY NOTE)
+
     # These attributes mostly used for testing
     attr_reader :conn, :errors
 
@@ -51,6 +53,16 @@ module Dor
       cursor.close
     end
 
+    # @return String The columns appended with comma and newline
+    def wf_column_string
+      WF_COLUMNS.inject('') { |str, col| str << col << ",\n"}
+    end
+
+    # @return String The columns prepended with 'w.' and appended with comma and newline
+    def wf_archive_column_string
+      WF_COLUMNS.inject('') { |str, col| str << 'w.' << col << ",\n"}
+    end
+
     # Copies rows from the workflow table to the workflow_archive table, then deletes the rows from workflow
     # Both operations must complete, or they get rolled back
     # @param [Array<Hash>] List of objects returned from {#find_completed_objects}.  It expects the following keys in the hash
@@ -73,35 +85,11 @@ module Dor
           end
           copy_sql =<<-EOSQL
             insert into #{@workflow_archive_table} (
-              ID,
-              DRUID,
-              DATASTREAM,
-              PROCESS,
-              STATUS,
-              ERROR_MSG,
-              ERROR_TXT,
-              DATETIME,
-              ATTEMPTS,
-              LIFECYCLE,
-              ELAPSED,
-              REPOSITORY,
-              NOTE,
+              #{wf_column_string}
               VERSION
             )
             select
-              w.ID,
-              w.DRUID,
-              w.DATASTREAM,
-              w.PROCESS,
-              w.STATUS,
-              w.ERROR_MSG,
-              w.ERROR_TXT,
-              w.DATETIME,
-              w.ATTEMPTS,
-              w.LIFECYCLE,
-              w.ELAPSED,
-              w.NOTE,
-              w.REPOSITORY,
+              #{wf_archive_column_string}
               #{version} as VERSION
             from #{@workflow_table} w
             where w.druid =    :DRUID
