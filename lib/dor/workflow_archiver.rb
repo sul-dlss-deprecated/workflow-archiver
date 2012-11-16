@@ -2,6 +2,24 @@ require 'rest_client'
 
 module Dor
 
+  WorkflowInfo = Struct.new(:repository, :druid, :datastream) do
+    # @param [Array<Hash>] List of objects returned from {WorkflowArchiver#find_completed_objects}.  It expects the following keys in the hash
+    #  "REPOSITORY", "DRUID", "DATASTREAM".  Note they are all caps strings, not symbols
+    def setup_from_query(row_hash)
+      self.repository = row_hash["REPOSITORY"]
+      self.druid = row_hash["DRUID"]
+      self.datastream = row_hash["DATASTREAM"]
+    end
+
+    # Picks out non nil members and builds a hash of column_name => column_value
+    # @return [Hash] All keys are in all CAPS
+    def to_bind_hash
+      h = {}
+      members.select {|m| self.send(m)}.each {|m| h[m.swapcase] = self.send(m) }
+      h
+    end
+  end
+
   class WorkflowArchiver
     WF_COLUMNS = %w(ID DRUID DATASTREAM PROCESS STATUS ERROR_MSG ERROR_TXT DATETIME ATTEMPTS LIFECYCLE ELAPSED REPOSITORY NOTE)
 
@@ -29,20 +47,27 @@ module Dor
       @workflow_table = (opts.include?(:wf_table) ? opts[:wf_table] : "workflow")
       @workflow_archive_table = (opts.include?(:wfa_table) ? opts[:wfa_table] : "workflow_archive")
       @retry_delay = (opts.include?(:retry_delay) ? opts[:retry_delay] : 5)
+
+      $pool ||= OCI8::ConnectionPool.new(1, 5, 2, @login, @password, @db_uri)
     end
 
     def connect_to_db
-      @conn = OCI8.new(@login, @password, @db_uri)
+      @conn = OCI8.new(@login, @password, $pool)
       @conn.autocommit = false
     end
 
-    def bind_and_exec_sql(sql, obj)
+    def destroy_pool
+      $pool.destroy
+    end
+
+    def bind_and_exec_sql(sql, workflow_info)
       # LyberCore::Log.debug("Executing: #{sql}")
       cursor = @conn.parse(sql)
-      obj.each do |k, v|
+
+      workflow_info.to_bind_hash.each do |k, v|
         param = ":#{k}"
         #LyberCore::Log.debug("Setting: #{param} #{v}")
-        cursor.bind_param(param, v) if(v)
+        cursor.bind_param(param, v)
       end
 
       num_rows = cursor.exec
@@ -73,45 +98,8 @@ module Dor
         tries = 0
         begin
           tries += 1
-          LyberCore::Log.info "Archiving #{obj.inspect}"
-
-          begin
-            version = get_latest_version(obj["DRUID"])
-          rescue RestClient::InternalServerError => ise
-            raise unless(ise.inspect =~ /Unable to find.*in fedora/)
-            LyberCore::Log.warn "#{ise.inspect}"
-            LyberCore::Log.warn "Moving workflow rows with version set to '1'"
-            version = '1'
-          end
-          copy_sql =<<-EOSQL
-            insert into #{@workflow_archive_table} (
-              #{wf_column_string}
-              VERSION
-            )
-            select
-              #{wf_archive_column_string}
-              #{version} as VERSION
-            from #{@workflow_table} w
-            where w.druid =    :DRUID
-            and w.datastream = :DATASTREAM
-          EOSQL
-
-          delete_sql = "delete #{@workflow_table} where druid = :DRUID and datastream = :DATASTREAM "
-
-          if(obj["REPOSITORY"])
-            copy_sql << "and w.repository = :REPOSITORY"
-            delete_sql << "and repository = :REPOSITORY"
-          else
-            copy_sql << "and w.repository IS NULL"
-            delete_sql << "and repository IS NULL"
-          end
-
-          bind_and_exec_sql(copy_sql, obj)
-
-          LyberCore::Log.debug "  Removing old workflow rows"
-          bind_and_exec_sql(delete_sql, obj)
-
-          @conn.commit
+          row = WorkflowInfo.new(obj)
+          archive_one_datastream(row)
           @archived += 1
         rescue => e
           LyberCore::Log.error "Rolling back transaction due to: #{e.inspect}\n" << e.backtrace.join("\n") << "\n!!!!!!!!!!!!!!!!!!"
@@ -133,6 +121,49 @@ module Dor
         end
 
       end # druids.each
+    end
+
+    # @param [WorkflowInfo] workflow_info contains info on the workflow rows to delete
+    def archive_one_datastream(workflow_info)
+      LyberCore::Log.info "Archiving #{workflow_info.inspect}"
+
+      begin
+        version = get_latest_version(workflow_info.druid)
+      rescue RestClient::InternalServerError => ise
+        raise unless(ise.inspect =~ /Unable to find.*in fedora/)
+        LyberCore::Log.warn "#{ise.inspect}"
+        LyberCore::Log.warn "Moving workflow rows with version set to '1'"
+        version = '1'
+      end
+      copy_sql =<<-EOSQL
+        insert into #{@workflow_archive_table} (
+          #{wf_column_string}
+          VERSION
+        )
+        select
+          #{wf_archive_column_string}
+          #{version} as VERSION
+        from #{@workflow_table} w
+        where w.druid =    :DRUID
+        and w.datastream = :DATASTREAM
+      EOSQL
+
+      delete_sql = "delete #{@workflow_table} where druid = :DRUID and datastream = :DATASTREAM "
+
+      if(workflow_info.repository)
+        copy_sql << "and w.repository = :REPOSITORY"
+        delete_sql << "and repository = :REPOSITORY"
+      else
+        copy_sql << "and w.repository IS NULL"
+        delete_sql << "and repository IS NULL"
+      end
+
+      bind_and_exec_sql(copy_sql, workflow_info)
+
+      LyberCore::Log.debug "  Removing old workflow rows"
+      bind_and_exec_sql(delete_sql, workflow_info)
+
+      @conn.commit
     end
 
     def get_latest_version(druid)
