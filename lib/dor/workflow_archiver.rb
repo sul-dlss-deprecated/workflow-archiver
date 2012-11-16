@@ -2,6 +2,7 @@ require 'rest_client'
 
 module Dor
 
+  # Holds the paramaters about the workflow rows that need to be deleted
   WorkflowInfo = Struct.new(:repository, :druid, :datastream) do
     # @param [Array<Hash>] List of objects returned from {WorkflowArchiver#find_completed_objects}.  It expects the following keys in the hash
     #  "REPOSITORY", "DRUID", "DATASTREAM".  Note they are all caps strings, not symbols
@@ -15,7 +16,9 @@ module Dor
     # @return [Hash] All keys are in all CAPS
     def to_bind_hash
       h = {}
-      members.select {|m| self.send(m)}.each {|m| h[m.swapcase] = self.send(m) }
+      members.each do |m|
+        h[m.swapcase] = self.send(m) if(self.send(m))
+      end
       h
     end
   end
@@ -98,7 +101,7 @@ module Dor
         tries = 0
         begin
           tries += 1
-          row = WorkflowInfo.new(obj)
+          row = WorkflowInfo.new.setup_from_query(obj)
           archive_one_datastream(row)
           @archived += 1
         rescue => e
@@ -123,7 +126,7 @@ module Dor
       end # druids.each
     end
 
-    # @param [WorkflowInfo] workflow_info contains info on the workflow rows to delete
+    # @param [WorkflowInfo] workflow_info contains paramaters on the workflow rows to delete
     def archive_one_datastream(workflow_info)
       LyberCore::Log.info "Archiving #{workflow_info.inspect}"
 
