@@ -10,6 +10,7 @@ module Dor
       self.repository = row_hash["REPOSITORY"]
       self.druid = row_hash["DRUID"]
       self.datastream = row_hash["DATASTREAM"]
+      self
     end
 
     # Picks out non nil members and builds a hash of column_name => column_value
