@@ -3,7 +3,7 @@ require 'rest_client'
 module Dor
 
   # Holds the paramaters about the workflow rows that need to be deleted
-  WorkflowInfo = Struct.new(:repository, :druid, :datastream) do
+  ArchiveCriteria = Struct.new(:repository, :druid, :datastream) do
     # @param [Array<Hash>] List of objects returned from {WorkflowArchiver#find_completed_objects}.  It expects the following keys in the hash
     #  "REPOSITORY", "DRUID", "DATASTREAM".  Note they are all caps strings, not symbols
     def setup_from_query(row_hash)
@@ -14,7 +14,7 @@ module Dor
     end
 
     # Picks out non nil members and builds a hash of column_name => column_value
-    # @return [Hash] All keys are in all CAPS
+    # @return [Hash] Maps column names (in ALL caps) to non-nil column values
     def to_bind_hash
       h = {}
       members.each do |m|
@@ -61,7 +61,7 @@ module Dor
     end
 
     def destroy_pool
-      $pool.destroy
+      $pool.destroy if($pool)
     end
 
     def bind_and_exec_sql(sql, workflow_info)
@@ -94,16 +94,13 @@ module Dor
 
     # Copies rows from the workflow table to the workflow_archive table, then deletes the rows from workflow
     # Both operations must complete, or they get rolled back
-    # @param [Array<Hash>] List of objects returned from {#find_completed_objects}.  It expects the following keys in the hash
-    #  "REPOSITORY", "DRUID", "DATASTREAM".  Note they are all caps strings, not symbols
-    # TODO figure out what version to insert
+    # @param [Array<ArchiveCriteria>] objs List of objects returned from {#find_completed_objects} and mapped to an array of ArchiveCriteria objects.
     def archive_rows(objs)
       objs.each do |obj|
         tries = 0
         begin
           tries += 1
-          row = WorkflowInfo.new.setup_from_query(obj)
-          archive_one_datastream(row)
+          do_one_archive(obj)
           @archived += 1
         rescue => e
           LyberCore::Log.error "Rolling back transaction due to: #{e.inspect}\n" << e.backtrace.join("\n") << "\n!!!!!!!!!!!!!!!!!!"
@@ -127,8 +124,21 @@ module Dor
       end # druids.each
     end
 
-    # @param [WorkflowInfo] workflow_info contains paramaters on the workflow rows to delete
-    def archive_one_datastream(workflow_info)
+    # Use this as a one-shot method to archive all the steps of an object's particular datastream
+    #   It will connect to the database, archive the rows, then logoff
+    # @param [String] repository
+    # @param [String] druid
+    # @param [String] datastream
+    def archive_one_datastream(repository, druid, datastream)
+      criteria = [ArchiveCriteria.new(repository, druid, datastream)]
+      connect_to_db
+      archive_rows criteria
+    ensure
+      @conn.logoff if(@conn)
+    end
+
+    # @param [ArchiveCriteria] workflow_info contains paramaters on the workflow rows to archive
+    def do_one_archive(workflow_info)
       LyberCore::Log.info "Archiving #{workflow_info.inspect}"
 
       begin
@@ -201,6 +211,12 @@ module Dor
       rows
     end
 
+    # @param [Array<Hash>] rows result from #find_completed_objects
+    # @return [Array<ArchiveCriteria>] each result mapped to an ArchiveCriteria object
+    def map_result_to_criteria(rows)
+      rows.map{|r| ArchiveCriteria.new.setup_from_query(r)}
+    end
+
     def simple_sql_exec(sql)
       @conn.exec(sql)
     rescue Exception => e
@@ -229,11 +245,13 @@ module Dor
 
       @errors = 0
       @archived = 0
-      with_indexing_disabled { archive_rows(objs) }
+      archiving_criteria = map_result_to_criteria(objs)
+      with_indexing_disabled { archive_rows(archiving_criteria) }
 
       LyberCore::Log.info "DONE! Processed #{@archived.to_s} objects with #{@errors.to_s} errors" if(@errors < 3 )
     ensure
       @conn.logoff
+      destroy_pool
     end
 
   end
