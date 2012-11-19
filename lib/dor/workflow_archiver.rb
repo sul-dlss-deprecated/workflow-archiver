@@ -26,7 +26,7 @@ module Dor
 
     def set_current_version
       begin
-        self.version = RestClient.get @dor_service_uri + "/dor/objects/#{self.druid}/versions/current"
+        self.version = RestClient.get DOR_SERVICE_URI + "/dor/objects/#{self.druid}/versions/current"
       rescue RestClient::InternalServerError => ise
         raise unless(ise.inspect =~ /Unable to find.*in fedora/)
         LyberCore::Log.warn "#{ise.inspect}"
