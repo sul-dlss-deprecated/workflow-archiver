@@ -14,11 +14,11 @@ module Dor
       self
     end
 
-    # Picks out non nil members and builds a hash of column_name => column_value
+    # Removes version from list of members, then picks out non nil members and builds a hash of column_name => column_value
     # @return [Hash] Maps column names (in ALL caps) to non-nil column values
     def to_bind_hash
       h = {}
-      members.each do |m|
+      members.reject{|mem| mem =~ /version/}.each do |m|
         h[m.swapcase] = self.send(m) if(self.send(m))
       end
       h
