@@ -194,7 +194,7 @@ module Dor
       completed_query =<<-EOSQL
        select distinct repository, datastream, druid
        from workflow w1
-       where w1.status = 'completed'
+       where w1.status in ('completed', 'skipped')
        and not exists
        (
           select *
@@ -202,7 +202,7 @@ module Dor
           where w1.repository = w2.repository
           and w1.datastream = w2.datastream
           and w1.druid = w2.druid
-          and w2.status != 'completed'
+          and w2.status not in ('completed', 'skipped')
        )
       EOSQL
 
