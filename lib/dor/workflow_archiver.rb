@@ -42,6 +42,10 @@ module Dor
     # These attributes mostly used for testing
     attr_reader :conn, :errors
 
+    def WorkflowArchiver.config
+      @@conf ||= Confstruct::Configuration.new
+    end
+
     # Sets up logging and connects to the database.  By default it reads values from constants:
     #  WORKFLOW_DB_LOGIN, WORKFLOW_DB_PASSWORD, WORKFLOW_DB_URI, DOR_SERVICE_URI but can be overriden with the opts Hash
     # @param [Hash] opts Options to override database parameters
@@ -53,13 +57,10 @@ module Dor
     # @option opts [String] :dor_service_uri ('DOR_SERVICE_URI') URI of the DOR Rest service
     # @option opts [Integer] :retry_delay (5) Number of seconds to sleep between retries of database operations
     def initialize(opts={})
-      LyberCore::Log.set_logfile("#{ROBOT_ROOT}/log/workflow_archiver.log")
-      LyberCore::Log.set_level(1)
-
-      @login = (opts.include?(:login) ? opts[:login] : WORKFLOW_DB_LOGIN)
-      @password = (opts.include?(:password) ? opts[:password] : WORKFLOW_DB_PASSWORD)
-      @db_uri = (opts.include?(:db_uri) ? opts[:db_uri] : WORKFLOW_DB_URI)
-      @dor_service_uri = (opts.include?(:dor_service_uri) ? opts[:dor_service_uri] : DOR_SERVICE_URI)
+      @login = (opts.include?(:login) ? opts[:login] : WorkflowArchiver.config.db_login)
+      @password = (opts.include?(:password) ? opts[:password] : WorkflowArchiver.config.db_password)
+      @db_uri = (opts.include?(:db_uri) ? opts[:db_uri] : WorkflowArchiver.config.db_uri)
+      @dor_service_uri = (opts.include?(:dor_service_uri) ? opts[:dor_service_uri] : WorkflowArchiver.config.dor_service_uri)
       @workflow_table = (opts.include?(:wf_table) ? opts[:wf_table] : "workflow")
       @workflow_archive_table = (opts.include?(:wfa_table) ? opts[:wfa_table] : "workflow_archive")
       @retry_delay = (opts.include?(:retry_delay) ? opts[:retry_delay] : 5)
