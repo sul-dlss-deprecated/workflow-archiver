@@ -1,4 +1,5 @@
 require 'rest_client'
+require 'oci8'
 
 module Dor
 
@@ -64,11 +65,10 @@ module Dor
       @workflow_table = (opts.include?(:wf_table) ? opts[:wf_table] : "workflow")
       @workflow_archive_table = (opts.include?(:wfa_table) ? opts[:wfa_table] : "workflow_archive")
       @retry_delay = (opts.include?(:retry_delay) ? opts[:retry_delay] : 5)
-
-      $odb_pool ||= OCI8::ConnectionPool.new(1, 5, 2, @login, @password, @db_uri)
     end
 
     def connect_to_db
+      $odb_pool ||= OCI8::ConnectionPool.new(1, 5, 2, @login, @password, @db_uri)
       @conn = OCI8.new(@login, @password, $odb_pool)
       @conn.autocommit = false
     end
