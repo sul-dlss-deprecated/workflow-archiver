@@ -27,7 +27,7 @@ module Dor
 
     def set_current_version
       begin
-        self.version = RestClient.get DOR_SERVICE_URI + "/dor/objects/#{self.druid}/versions/current"
+        self.version = RestClient.get WorkflowArchiver.config.dor_service_uri + "/dor/objects/#{self.druid}/versions/current"
       rescue RestClient::InternalServerError => ise
         raise unless(ise.inspect =~ /Unable to find.*in fedora/)
         LyberCore::Log.warn "#{ise.inspect}"
@@ -65,6 +65,10 @@ module Dor
       @workflow_table = (opts.include?(:wf_table) ? opts[:wf_table] : "workflow")
       @workflow_archive_table = (opts.include?(:wfa_table) ? opts[:wfa_table] : "workflow_archive")
       @retry_delay = (opts.include?(:retry_delay) ? opts[:retry_delay] : 5)
+
+      # initialize some counters
+      @errors = 0
+      @archived = 0
     end
 
     def connect_to_db
@@ -247,8 +251,6 @@ module Dor
 
       LyberCore::Log.info "Found #{objs.size.to_s} completed workflows"
 
-      @errors = 0
-      @archived = 0
       archiving_criteria = map_result_to_criteria(objs)
       with_indexing_disabled { archive_rows(archiving_criteria) }
 
