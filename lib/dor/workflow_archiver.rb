@@ -113,7 +113,7 @@ module Dor
     # @param [String] datastream
     # @param [String] version
     def archive_one_datastream(repository, druid, datastream, version)
-      criteria = ArchiveCriteria.new(repository, druid, datastream, version)
+      criteria = [ArchiveCriteria.new(repository, druid, datastream, version)]
       connect_to_db
       archive_rows criteria
     ensure
