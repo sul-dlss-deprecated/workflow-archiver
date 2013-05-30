@@ -222,7 +222,16 @@ module Dor
     # @param [Array<Hash>] rows result from #find_completed_objects
     # @return [Array<ArchiveCriteria>] each result mapped to an ArchiveCriteria object
     def map_result_to_criteria(rows)
-      rows.map{|r| ArchiveCriteria.new.setup_from_query(r)}
+      criteria = rows.map do |r|
+        begin
+          ArchiveCriteria.new.setup_from_query(r)
+        rescue => e
+          LyberCore::Log.error("Skipping archiving of #{r['DRUID']}")
+          LyberCore::Log.error("#{e.inspect}\n" + e.backtrace.join("\n"))
+          nil
+        end
+      end
+      criteria.reject {|c| c.nil?}
     end
 
     def simple_sql_exec(sql)
