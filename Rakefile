@@ -2,6 +2,7 @@ require 'rubygems'
 require 'rake'
 require 'bundler'
 
+Bundler::GemHelper.install_tasks
 Dir.glob('lib/tasks/*.rake').each { |r| import r }
 
 begin

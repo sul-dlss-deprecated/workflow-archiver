@@ -16,6 +16,7 @@ Gem::Specification.new do |s|
 
   # Runtime dependencies
 
+  s.add_development_dependency "rake"
   s.add_dependency "lyber-core"
   s.add_dependency "rest-client"
   s.add_dependency "ruby-oci8"
