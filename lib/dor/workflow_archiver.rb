@@ -1,4 +1,6 @@
 require 'rest_client'
+require 'confstruct'
+require 'lyber_core'
 require 'oci8'
 
 module Dor

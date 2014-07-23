@@ -19,6 +19,7 @@ Gem::Specification.new do |s|
   s.add_dependency "lyber-core"
   s.add_dependency "rest-client"
   s.add_dependency "ruby-oci8"
+  s.add_dependency "confstruct"
 
   s.add_development_dependency "rake"
   s.add_development_dependency "rspec"
