@@ -11,7 +11,6 @@ Gem::Specification.new do |s|
   s.email       = ["wmene@stanford.edu"]
   s.summary     = "Enables archiving of DOR workflows"
   s.description = "Can be used standalone or used as a library"
-  s.executables = ["run_archiver"]
 
   s.required_rubygems_version = ">= 1.3.6"
 
@@ -21,10 +20,8 @@ Gem::Specification.new do |s|
   s.add_dependency "rest-client"
   s.add_dependency "ruby-oci8"
 
-  s.add_development_dependency "lyberteam-devel", ">=1.0.0"
   s.add_development_dependency "rspec"
 
-  s.files        = Dir.glob("lib/**/*") + ['bin/run_archiver']
-  s.bindir       = 'bin'
+  s.files        = Dir.glob("lib/**/*")
   s.require_path = 'lib'
 end
