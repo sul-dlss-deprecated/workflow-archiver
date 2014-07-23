@@ -16,12 +16,13 @@ Gem::Specification.new do |s|
 
   # Runtime dependencies
 
-  s.add_development_dependency "rake"
   s.add_dependency "lyber-core"
   s.add_dependency "rest-client"
   s.add_dependency "ruby-oci8"
 
+  s.add_development_dependency "rake"
   s.add_development_dependency "rspec"
+  s.add_development_dependency "active-fedora"
 
   s.files        = Dir.glob("lib/**/*") + ["VERSION"]
   s.require_path = 'lib'
