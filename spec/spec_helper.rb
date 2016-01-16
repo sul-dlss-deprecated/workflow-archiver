@@ -2,7 +2,7 @@ require 'rubygems'
 require 'bundler/setup'
 
 # Make sure specs run with the definitions from test.rb
-environment = ENV['ROBOT_ENVIRONMENT'] = 'test'
+ENV['ROBOT_ENVIRONMENT'] = 'test'
 
 require 'rspec'
 require 'dor/workflow_archiver'

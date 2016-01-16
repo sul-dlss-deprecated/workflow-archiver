@@ -4,15 +4,14 @@ require 'lyber_core'
 require 'oci8'
 
 module Dor
-
   # Holds the paramaters about the workflow rows that need to be deleted
   ArchiveCriteria = Struct.new(:repository, :druid, :datastream, :version) do
     # @param [Array<Hash>] List of objects returned from {WorkflowArchiver#find_completed_objects}.  It expects the following keys in the hash
     #  "REPOSITORY", "DRUID", "DATASTREAM".  Note they are all caps strings, not symbols
     def setup_from_query(row_hash)
-      self.repository = row_hash["REPOSITORY"]
-      self.druid = row_hash["DRUID"]
-      self.datastream = row_hash["DATASTREAM"]
+      self.repository = row_hash['REPOSITORY']
+      self.druid      = row_hash['DRUID']
+      self.datastream = row_hash['DATASTREAM']
       set_current_version
       self
     end
@@ -21,21 +20,19 @@ module Dor
     # @return [Hash] Maps column names (in ALL caps) to non-nil column values
     def to_bind_hash
       h = {}
-      members.reject{|mem| mem =~ /version/}.each do |m|
-        h[m.swapcase] = self.send(m) if(self.send(m))
+      members.reject { |mem| mem =~ /version/ }.each do |m|
+        h[m.swapcase] = send(m) if send(m)
       end
       h
     end
 
     def set_current_version
-      begin
-        self.version = RestClient.get WorkflowArchiver.config.dor_service_uri + "/dor/v1/objects/#{self.druid}/versions/current"
-      rescue RestClient::InternalServerError => ise
-        raise unless(ise.inspect =~ /Unable to find.*in fedora/)
-        LyberCore::Log.warn "#{ise.inspect}"
-        LyberCore::Log.warn "Moving workflow rows with version set to '1'"
-        self.version = '1'
-      end
+      self.version = RestClient.get WorkflowArchiver.config.dor_service_uri + "/dor/v1/objects/#{druid}/versions/current"
+    rescue RestClient::InternalServerError => ise
+      raise unless ise.inspect =~ /Unable to find.*in fedora/
+      LyberCore::Log.warn "#{ise.inspect}"
+      LyberCore::Log.warn "Moving workflow rows with version set to '1'"
+      self.version = '1'
     end
   end
 
@@ -45,7 +42,7 @@ module Dor
     # These attributes mostly used for testing
     attr_reader :conn, :errors
 
-    def WorkflowArchiver.config
+    def self.config
       @@conf ||= Confstruct::Configuration.new
     end
 
@@ -59,14 +56,14 @@ module Dor
     # @option opts [String] :wfa_table ('workflow_archive') Name of the workflow archive table
     # @option opts [String] :dor_service_uri ('DOR_SERVICE_URI') URI of the DOR Rest service
     # @option opts [Integer] :retry_delay (5) Number of seconds to sleep between retries of database operations
-    def initialize(opts={})
-      @login = (opts.include?(:login) ? opts[:login] : WorkflowArchiver.config.db_login)
-      @password = (opts.include?(:password) ? opts[:password] : WorkflowArchiver.config.db_password)
-      @db_uri = (opts.include?(:db_uri) ? opts[:db_uri] : WorkflowArchiver.config.db_uri)
-      @dor_service_uri = (opts.include?(:dor_service_uri) ? opts[:dor_service_uri] : WorkflowArchiver.config.dor_service_uri)
-      @workflow_table = (opts.include?(:wf_table) ? opts[:wf_table] : "workflow")
-      @workflow_archive_table = (opts.include?(:wfa_table) ? opts[:wfa_table] : "workflow_archive")
-      @retry_delay = (opts.include?(:retry_delay) ? opts[:retry_delay] : 5)
+    def initialize(opts = {})
+      @login                  = opts.include?(:login)       ? opts[:login]       : WorkflowArchiver.config.db_login
+      @password               = opts.include?(:password)    ? opts[:password]    : WorkflowArchiver.config.db_password
+      @db_uri                 = opts.include?(:db_uri)      ? opts[:db_uri]      : WorkflowArchiver.config.db_uri
+      @dor_service_uri        = opts.include?(:dor_service_uri) ? opts[:dor_service_uri] : WorkflowArchiver.config.dor_service_uri
+      @workflow_table         = opts.include?(:wf_table)    ? opts[:wf_table]    : 'workflow'
+      @workflow_archive_table = opts.include?(:wfa_table)   ? opts[:wfa_table]   : 'workflow_archive'
+      @retry_delay            = opts.include?(:retry_delay) ? opts[:retry_delay] : 5
 
       # initialize some counters
       @errors = 0
@@ -80,35 +77,31 @@ module Dor
     end
 
     def destroy_pool
-      $odb_pool.destroy if($odb_pool)
+      $odb_pool.destroy if $odb_pool
     end
 
     def bind_and_exec_sql(sql, workflow_info)
       # LyberCore::Log.debug("Executing: #{sql}")
       cursor = @conn.parse(sql)
-
       workflow_info.to_bind_hash.each do |k, v|
         param = ":#{k}"
-        #LyberCore::Log.debug("Setting: #{param} #{v}")
+        # LyberCore::Log.debug("Setting: #{param} #{v}")
         cursor.bind_param(param, v)
       end
-
       num_rows = cursor.exec
-      unless num_rows > 0
-        raise "Expected more than 0 rows to be updated"
-      end
+      fail 'Expected more than 0 rows to be updated' unless num_rows > 0
     ensure
       cursor.close
     end
 
     # @return String The columns appended with comma and newline
     def wf_column_string
-      WF_COLUMNS.inject('') { |str, col| str << col << ",\n"}
+      WF_COLUMNS.inject('') { |str, col| str << col << ",\n" }
     end
 
     # @return String The columns prepended with 'w.' and appended with comma and newline
     def wf_archive_column_string
-      WF_COLUMNS.inject('') { |str, col| str << 'w.' << col << ",\n"}
+      WF_COLUMNS.inject('') { |str, col| str << 'w.' << col << ",\n" }
     end
 
     # Use this as a one-shot method to archive all the steps of an object's particular datastream
@@ -123,7 +116,7 @@ module Dor
       connect_to_db
       archive_rows criteria
     ensure
-      @conn.logoff if(@conn)
+      @conn.logoff if @conn
     end
 
     # Copies rows from the workflow table to the workflow_archive table, then deletes the rows from workflow
@@ -139,10 +132,8 @@ module Dor
         rescue => e
           LyberCore::Log.error "Rolling back transaction due to: #{e.inspect}\n" << e.backtrace.join("\n") << "\n!!!!!!!!!!!!!!!!!!"
           @conn.rollback
-
-          # Retry this druid up to 3 times
-          if tries < 3
-            LyberCore::Log.error "  Retrying archive operation in #{@retry_delay.to_s} seconds..."
+          if tries < 3 # Retry this druid up to 3 times
+            LyberCore::Log.error "  Retrying archive operation in #{@retry_delay} seconds..."
             sleep @retry_delay
             retry
           end
@@ -150,20 +141,17 @@ module Dor
 
           @errors += 1
           if @errors >= 3
-            LyberCore::Log.fatal("Too many errors. Archiving halted")
+            LyberCore::Log.fatal('Too many errors. Archiving halted')
             break
           end
         end
-
       end # druids.each
     end
 
     # @param [ArchiveCriteria] workflow_info contains paramaters on the workflow rows to archive
     def do_one_archive(workflow_info)
       LyberCore::Log.info "Archiving #{workflow_info.inspect}"
-
-
-      copy_sql =<<-EOSQL
+      copy_sql = <<-EOSQL
         insert into #{@workflow_archive_table} (
           #{wf_column_string}
           VERSION
@@ -178,27 +166,24 @@ module Dor
 
       delete_sql = "delete #{@workflow_table} where druid = :DRUID and datastream = :DATASTREAM "
 
-      if(workflow_info.repository)
-        copy_sql << "and w.repository = :REPOSITORY"
-        delete_sql << "and repository = :REPOSITORY"
+      if workflow_info.repository
+        copy_sql << 'and w.repository = :REPOSITORY'
+        delete_sql << 'and repository = :REPOSITORY'
       else
-        copy_sql << "and w.repository IS NULL"
-        delete_sql << "and repository IS NULL"
+        copy_sql << 'and w.repository IS NULL'
+        delete_sql << 'and repository IS NULL'
       end
-
       bind_and_exec_sql(copy_sql, workflow_info)
-
-      LyberCore::Log.debug "  Removing old workflow rows"
+      LyberCore::Log.debug '  Removing old workflow rows'
       bind_and_exec_sql(delete_sql, workflow_info)
-
       @conn.commit
     end
 
     # Finds objects where all workflow steps are complete
-    # Returns an array of hashes, each hash having the following keys:
-    # {"REPOSITORY"=>"dor", "DRUID"=>"druid:345", "DATASTREAM"=>"googleScannedBookWF"}
+    # @return [Array<Hash{String=>String}>] each hash returned has the following keys:
+    #   {"REPOSITORY"=>"dor", "DRUID"=>"druid:345", "DATASTREAM"=>"googleScannedBookWF"}
     def find_completed_objects
-      completed_query =<<-EOSQL
+      completed_query = <<-EOSQL
        select distinct repository, datastream, druid
        from workflow w1
        where w1.status in ('completed', 'skipped')
@@ -233,7 +218,7 @@ module Dor
           nil
         end
       end
-      criteria.reject {|c| c.nil?}
+      criteria.reject(&:nil?)
     end
 
     def simple_sql_exec(sql)
@@ -242,35 +227,29 @@ module Dor
       LyberCore::Log.warn "Ignoring error: #{e.message}\n  while trying to execute: " << sql
     end
 
-    def with_indexing_disabled(&block)
-      simple_sql_exec("drop index ds_wf_ar_bitmap_idx")
-      simple_sql_exec("drop index repo_wf_ar_bitmap_idx")
+    def with_indexing_disabled(&_block)
+      simple_sql_exec('drop index ds_wf_ar_bitmap_idx')
+      simple_sql_exec('drop index repo_wf_ar_bitmap_idx')
       yield
     ensure
-      simple_sql_exec("create bitmap index ds_wf_ar_bitmap_idx on workflow_archive (datastream)")
-      simple_sql_exec("create bitmap index repo_wf_ar_bitmap_idx on workflow_archive (repository)")
+      simple_sql_exec('create bitmap index ds_wf_ar_bitmap_idx on workflow_archive (datastream)')
+      simple_sql_exec('create bitmap index repo_wf_ar_bitmap_idx on workflow_archive (repository)')
     end
 
     # Does the work of finding completed objects and archiving the rows
     def archive
       objs = find_completed_objects
-
       if objs.size == 0
-        LyberCore::Log.info "Nothing to archive"
+        LyberCore::Log.info 'Nothing to archive'
         exit true
       end
-
-      LyberCore::Log.info "Found #{objs.size.to_s} completed workflows"
-
+      LyberCore::Log.info "Found #{objs.size} completed workflows"
       archiving_criteria = map_result_to_criteria(objs)
       with_indexing_disabled { archive_rows(archiving_criteria) }
-
-      LyberCore::Log.info "DONE! Processed #{@archived.to_s} objects with #{@errors.to_s} errors" if(@errors < 3 )
+      LyberCore::Log.info "DONE! Processed #{@archived} objects with #{@errors} errors" if @errors < 3
     ensure
       @conn.logoff
       destroy_pool
     end
-
   end
-
 end
