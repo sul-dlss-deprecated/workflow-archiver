@@ -30,7 +30,7 @@ module Dor
       self.version = RestClient.get WorkflowArchiver.config.dor_service_uri + "/dor/v1/objects/#{druid}/versions/current"
     rescue RestClient::InternalServerError => ise
       raise unless ise.inspect =~ /Unable to find.*in fedora/
-      LyberCore::Log.warn "#{ise.inspect}"
+      LyberCore::Log.warn ise.inspect.to_s
       LyberCore::Log.warn "Moving workflow rows with version set to '1'"
       self.version = '1'
     end
@@ -64,7 +64,6 @@ module Dor
       @workflow_table         = opts.include?(:wf_table)    ? opts[:wf_table]    : 'workflow'
       @workflow_archive_table = opts.include?(:wfa_table)   ? opts[:wfa_table]   : 'workflow_archive'
       @retry_delay            = opts.include?(:retry_delay) ? opts[:retry_delay] : 5
-
       # initialize some counters
       @errors = 0
       @archived = 0
