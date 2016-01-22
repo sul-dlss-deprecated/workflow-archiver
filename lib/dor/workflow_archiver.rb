@@ -93,12 +93,12 @@ module Dor
       cursor.close
     end
 
-    # @return String The columns appended with comma and newline
+    # @return [String] The columns appended with comma and newline
     def wf_column_string
       WF_COLUMNS.inject('') { |str, col| str << col << ",\n" }
     end
 
-    # @return String The columns prepended with 'w.' and appended with comma and newline
+    # @return [String] The columns prepended with 'w.' and appended with comma and newline
     def wf_archive_column_string
       WF_COLUMNS.inject('') { |str, col| str << 'w.' << col << ",\n" }
     end
