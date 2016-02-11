@@ -6,7 +6,6 @@ describe Dor::WorkflowArchiver do
     @login = ''
     @pword = ''
     @uri = ''
-
     @conn = double('db_conn')
   end
 
@@ -15,8 +14,8 @@ describe Dor::WorkflowArchiver do
       Dor::WorkflowArchiver.new(login: @login, password: @pword, db_uri: @uri, retry_delay: 1,
                                 dor_service_uri: 'http://sul-lyberservices-dev.stanford.edu')
     end
-
     it "calls the DOR REST service to get the object's latest version" do
+      skip 'Nobody wrote a test'
     end
   end
 end
