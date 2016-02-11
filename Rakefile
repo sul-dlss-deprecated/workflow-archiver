@@ -1,9 +1,9 @@
 require 'rubygems'
 require 'rake'
 require 'bundler'
+require 'rspec/core/rake_task'
 
 Bundler::GemHelper.install_tasks
-Dir.glob('lib/tasks/*.rake').each { |r| import r }
 
 begin
   Bundler.setup(:default, :development)
@@ -13,9 +13,8 @@ rescue Bundler::BundlerError => e
   exit e.status_code
 end
 
-require 'rspec/core/rake_task'
 RSpec::Core::RakeTask.new(:spec) do |spec|
-  spec.pattern = 'spec/**/*_spec.rb', 'test/**/*.rb'
+  spec.pattern = 'spec/**/*_spec.rb'
 end
 
 task default: ['spec']
