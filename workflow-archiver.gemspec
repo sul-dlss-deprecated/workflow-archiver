@@ -22,7 +22,6 @@ Gem::Specification.new do |s|
 
   s.add_development_dependency 'rake'
   s.add_development_dependency 'rspec'
-  s.add_development_dependency 'active-fedora'
   s.add_development_dependency 'sqlite3'
 
   s.files        = Dir.glob('lib/**/*') + ['VERSION']
