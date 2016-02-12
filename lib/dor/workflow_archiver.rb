@@ -54,6 +54,7 @@ module Dor
     # @option opts [String] :dor_service_uri ('DOR_SERVICE_URI') URI of the DOR Rest service
     # @option opts [Integer] :retry_delay (5) Number of seconds to sleep between retries of database operations
     def initialize(opts = {})
+      @conn = opts[:db_connection]
       @db_uri                 = opts.fetch(:db_uri, WorkflowArchiver.config.db_uri).freeze
       @dor_service_uri        = opts.include?(:dor_service_uri) ? opts[:dor_service_uri] : WorkflowArchiver.config.dor_service_uri
       @workflow_table         = opts.include?(:wf_table)    ? opts[:wf_table]    : 'workflow'
