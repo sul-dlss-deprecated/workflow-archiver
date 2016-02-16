@@ -2,4 +2,4 @@
 
 # workflow-archiver
 
-Has Oracle binary dependencies.
+Archives completed object workflow entries to a separate archive table.
