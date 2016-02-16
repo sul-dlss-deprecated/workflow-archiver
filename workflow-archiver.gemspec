@@ -15,15 +15,14 @@ Gem::Specification.new do |s|
   s.required_rubygems_version = '>= 1.3.6'
 
   # Runtime dependencies
-
   s.add_dependency 'lyber-core'
   s.add_dependency 'rest-client'
-  s.add_dependency 'ruby-oci8'
+  s.add_dependency 'sequel'
   s.add_dependency 'confstruct'
 
   s.add_development_dependency 'rake'
   s.add_development_dependency 'rspec'
-  s.add_development_dependency 'active-fedora'
+  s.add_development_dependency 'sqlite3'
 
   s.files        = Dir.glob('lib/**/*') + ['VERSION']
   s.require_path = 'lib'

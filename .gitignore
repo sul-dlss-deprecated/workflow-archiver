@@ -13,4 +13,4 @@ config/certs
 .rvmrc
 Gemfile.lock
 pkg
-
+db/
