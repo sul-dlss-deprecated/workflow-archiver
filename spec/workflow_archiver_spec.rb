@@ -103,7 +103,7 @@ describe Dor::WorkflowArchiver do
 
   describe '#archive_rows' do
     before do
-      expect(RestClient).to receive(:get).at_least(:twice).with(/^#{Dor::WorkflowArchiver.config.dor_service_uri}\/dor\/v1\/objects\/integration:/).and_return('1')
+      expect(Faraday).to receive(:get).at_least(:twice).with(/^#{Dor::WorkflowArchiver.config.dor_service_uri}\/dor\/v1\/objects\/integration:/).and_return('1')
     end
 
     it 'copies completed workflow rows to the archive table' do
