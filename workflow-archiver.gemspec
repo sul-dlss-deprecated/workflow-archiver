@@ -16,7 +16,7 @@ Gem::Specification.new do |s|
 
   # Runtime dependencies
   s.add_dependency 'lyber-core'
-  s.add_dependency 'rest-client'
+  s.add_dependency 'faraday'
   s.add_dependency 'sequel'
   s.add_dependency 'confstruct'
 

@@ -1,4 +1,4 @@
-require 'rest_client'
+require 'faraday'
 require 'confstruct'
 require 'lyber_core'
 require 'sequel'
@@ -26,8 +26,8 @@ module Dor
     end
 
     def set_current_version
-      self.version = RestClient.get WorkflowArchiver.config.dor_service_uri + "/dor/v1/objects/#{druid}/versions/current"
-    rescue RestClient::InternalServerError => ise
+      self.version = Faraday.get WorkflowArchiver.config.dor_service_uri + "/dor/v1/objects/#{druid}/versions/current"
+    rescue Faraday::Error::ClientError => ise
       raise unless ise.inspect =~ /Unable to find.*in fedora/
       LyberCore::Log.warn ise.inspect.to_s
       LyberCore::Log.warn "Moving workflow rows with version set to '1'"
