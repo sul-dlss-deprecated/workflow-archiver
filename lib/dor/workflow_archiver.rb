@@ -93,7 +93,7 @@ module Dor
     # Both operations must complete, or they get rolled back
     # @param [Array<ArchiveCriteria>] objs List of objects returned from {#find_completed_objects} and mapped to an array of ArchiveCriteria objects.
     def archive_rows(objs)
-      objs = objs.first(5000) # TODO: Limit to 5000 objects, hacky way of doing this 
+      # objs = objs.first(5000) # TODO: Limit to 5000 objects, hacky way of doing this 
       objs.each do |obj|
         tries = 0
         begin
@@ -174,7 +174,7 @@ module Dor
        )
       EOSQL
 
-      conn.fetch(completed_query) do |row|
+      conn.fetch(completed_query).first(5000) do |row|
         yield row
       end
     end
