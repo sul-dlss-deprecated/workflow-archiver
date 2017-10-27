@@ -253,6 +253,7 @@ module Dor
 
     # Does the work of finding completed objects and archiving the rows
     def archive
+      connect_to_db
       objs = find_completed_objects
 
       if objs.size == 0
