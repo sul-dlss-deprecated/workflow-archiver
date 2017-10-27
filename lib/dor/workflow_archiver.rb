@@ -45,7 +45,7 @@ module Dor
     # These attributes mostly used for testing
     attr_reader :conn, :errors
 
-    def WorkflowArchiver.config
+    def self.config
       @@conf ||= Confstruct::Configuration.new
     end
 
