@@ -1,0 +1,5 @@
+sudo: false
+language: ruby
+rvm:
+  - '2.1.4'
+  - '2.2.4'

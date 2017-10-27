@@ -45,7 +45,7 @@ module Dor
     # These attributes mostly used for testing
     attr_reader :conn, :errors
 
-    def WorkflowArchiver.config
+    def self.config
       @@conf ||= Confstruct::Configuration.new
     end
 
@@ -253,6 +253,7 @@ module Dor
 
     # Does the work of finding completed objects and archiving the rows
     def archive
+      connect_to_db
       objs = find_completed_objects
 
       if objs.size == 0
@@ -261,6 +262,7 @@ module Dor
       end
 
       LyberCore::Log.info "Found #{objs.size.to_s} completed workflows"
+      objs = objs.first(600) # FIXME: temporarily limit objs processed until we fix cron not to fire if job still running
 
       archiving_criteria = map_result_to_criteria(objs)
       with_indexing_disabled { archive_rows(archiving_criteria) }
