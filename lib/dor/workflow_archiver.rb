@@ -262,7 +262,7 @@ module Dor
       end
 
       LyberCore::Log.info "Found #{objs.size.to_s} completed workflows"
-      objs = objs.first(500) # FIXME: temporarily limit objs processed until we fix cron not to fire if job still running
+      objs = objs.first(600) # FIXME: temporarily limit objs processed until we fix cron not to fire if job still running
 
       archiving_criteria = map_result_to_criteria(objs)
       with_indexing_disabled { archive_rows(archiving_criteria) }
