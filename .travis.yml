@@ -1,5 +1,15 @@
 sudo: false
+
 language: ruby
+
+notifications:
+  email: false
+
+# skip travis build while tests require oracle (they don't on master branch)
+# https://docs.travis-ci.com/user/customizing-the-build/#Breaking-the-Build
+before_install: false
+
 rvm:
-  - '2.1.4'
-  - '2.2.4'
+#  - '2.1.4'
+  - '2.2.4'  # what's on the workflow-archiver-job production VM as of 2017-10-30
+#  - '2.4.2'  # what we'd like
