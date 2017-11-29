@@ -7,11 +7,11 @@ module Dor
   # Holds the paramaters about the workflow rows that need to be deleted
   ArchiveCriteria = Struct.new(:repository, :druid, :datastream, :version) do
     # @param [Array<Hash>] List of objects returned from {WorkflowArchiver#find_completed_objects}.  It expects the following keys in the hash
-    def setup_from_query(row_hash)
+    def setup_from_query(row_hash, dor_conn)
       self.repository = row_hash[:repository]
       self.druid = row_hash[:druid]
       self.datastream = row_hash[:datastream]
-      set_current_version
+      set_current_version(dor_conn)
       self
     end
 
@@ -25,8 +25,9 @@ module Dor
       h
     end
 
-    def set_current_version
-      self.version = Faraday.get WorkflowArchiver.config.dor_service_uri + "/dor/v1/objects/#{druid}/versions/current"
+    def set_current_version(dor_conn)
+      response = dor_conn.get "/dor/v1/objects/#{druid}/versions/current"
+      self.version = response.body
     rescue Faraday::Error::ClientError => ise
       raise unless ise.inspect =~ /Unable to find.*in fedora/
       LyberCore::Log.warn ise.inspect.to_s
@@ -65,6 +66,10 @@ module Dor
 
     def conn
       @conn ||= Sequel.connect(@db_uri)
+    end
+
+    def dor_conn
+      @dor_conn ||= Faraday.new(:url => WorkflowArchiver.config.dor_service_uri)
     end
 
     # @return [String] The columns appended with comma and newline
@@ -135,6 +140,9 @@ module Dor
 
       delete_sql = "delete from #{@workflow_table} where druid = :druid and datastream = :datastream "
 
+      LyberCore::Log.debug "copy_sql is #{copy_sql}"
+      LyberCore::Log.debug "delete_sql is #{delete_sql}"
+
       if(workflow_info.repository)
         copy_sql += "and #{@workflow_table}.repository = :repository"
         delete_sql += 'and repository = :repository'
@@ -183,7 +191,7 @@ module Dor
     def map_result_to_criteria(rows)
       rows.lazy.map do |r|
         begin
-          ArchiveCriteria.new.setup_from_query(r)
+          ArchiveCriteria.new.setup_from_query(r, dor_conn)
         rescue => e
           LyberCore::Log.error("Skipping archiving of #{r['DRUID']}")
           LyberCore::Log.error("#{e.inspect}\n" + e.backtrace.join("\n"))

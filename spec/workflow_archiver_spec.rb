@@ -70,7 +70,7 @@ describe Dor::WorkflowArchiver do
   :datastream: sdrIngestWF
   :process: register-sdr
   :status: completed
-  :repository: 
+  :repository:
     EOF
 
     data.each do |d|
@@ -102,8 +102,12 @@ describe Dor::WorkflowArchiver do
   end
 
   describe '#archive_rows' do
+    let(:dor_conn) { instance_double(Faraday::Connection) }
+    let(:response) { instance_double(Faraday::Response, body: '1') }
+
     before do
-      expect(Faraday).to receive(:get).at_least(:twice).with(/^#{Dor::WorkflowArchiver.config.dor_service_uri}\/dor\/v1\/objects\/integration:/).and_return('1')
+      allow(subject).to receive(:dor_conn).and_return(dor_conn)
+      expect(dor_conn).to receive(:get).at_least(:twice).with(/^\/dor\/v1\/objects\/integration:/).and_return(response)
     end
 
     it 'copies completed workflow rows to the archive table' do
