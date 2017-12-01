@@ -208,7 +208,7 @@ module Dor
         LyberCore::Log.info 'Nothing to archive'
         exit true
       end
-      LyberCore::Log.info "Found #{objs.size} completed workflows"
+      LyberCore::Log.info "Found #{objs.count} completed workflows"
       archiving_criteria = map_result_to_criteria(objs)
       archive_rows(archiving_criteria)
 
