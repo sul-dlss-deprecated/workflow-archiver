@@ -206,13 +206,13 @@ module Dor
 
       if objs.none?
         LyberCore::Log.info 'Nothing to archive'
-        exit true
-      end
-      LyberCore::Log.info "Found #{objs.count} completed workflows"
-      archiving_criteria = map_result_to_criteria(objs)
-      archive_rows(archiving_criteria)
+      else
+        LyberCore::Log.info "Found #{objs.count} completed workflows"
+        archiving_criteria = map_result_to_criteria(objs)
+        archive_rows(archiving_criteria)
 
-      LyberCore::Log.info "DONE! Processed #{@archived.to_s} objects with #{@errors.to_s} errors" if @errors < 3
+        LyberCore::Log.info "DONE! Processed #{@archived.to_s} objects with #{@errors.to_s} errors" if @errors < 3
+      end
     end
   end
 end
