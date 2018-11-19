@@ -3,3 +3,5 @@
 # workflow-archiver
 
 Archives completed object workflow entries to a separate archive table.
+
+Objects not versionable until workflows are archived.
