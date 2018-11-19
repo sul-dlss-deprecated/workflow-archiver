@@ -4,5 +4,5 @@
 
 Archives completed object workflow entries to a separate archive table.
 
-Objects not versionable until workflows are archived, because presently we have no mechanism for handling multiple versions
+Objects are not versionable until workflows are archived, because presently we have no mechanism for handling multiple versions
 heading into the preservation core.
