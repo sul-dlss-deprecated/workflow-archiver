@@ -107,7 +107,7 @@ describe Dor::WorkflowArchiver do
 
     before do
       allow(subject).to receive(:dor_conn).and_return(dor_conn)
-      expect(dor_conn).to receive(:get).at_least(:twice).with(/^\/dor\/v1\/objects\/integration:/).and_return(response)
+      expect(dor_conn).to receive(:get).at_least(:twice).with(/^\/v1\/objects\/integration:/).and_return(response)
     end
 
     it 'copies completed workflow rows to the archive table' do

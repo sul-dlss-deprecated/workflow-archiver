@@ -26,7 +26,7 @@ module Dor
     end
 
     def set_current_version(dor_conn)
-      response = dor_conn.get "/dor/v1/objects/#{druid}/versions/current"
+      response = dor_conn.get "/v1/objects/#{druid}/versions/current"
       self.version = response.body
     rescue Faraday::Error::ClientError => ise
       raise unless ise.inspect =~ /Unable to find.*in fedora/
@@ -69,7 +69,7 @@ module Dor
     end
 
     def dor_conn
-      @dor_conn ||= Faraday.new(:url => WorkflowArchiver.config.dor_service_uri)
+      @dor_conn ||= Faraday.new(url: WorkflowArchiver.config.dor_service_uri)
     end
 
     # @return [String] The columns appended with comma and newline
